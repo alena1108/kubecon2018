@@ -1,7 +1,7 @@
 kubecon2018
 ========
-
-## ***FILL THIS OUT WITH A USEFUL DESCRIPTION OF THIS REPO***
+## About
+This repo's code is used for kubecon 2018 EU live demo
 
 ## Building
 
