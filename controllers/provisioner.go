@@ -1,0 +1,4 @@
+package controllers
+
+func Register() {
+}

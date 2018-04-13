@@ -4,3 +4,5 @@
 *.swp
 /.trash-cache
 /trash.lock
+/kubecon2018
+/.idea
