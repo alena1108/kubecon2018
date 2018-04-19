@@ -45,7 +45,7 @@ func run(kubeConfig string) error {
 
 	logrus.Info("Running command")
 	cmdName := "/Users/alena/go/src/github.com/rancher/rke/rke"
-	cmdArgs := []string{"up", "--config", "/Users/alena/Desktop/KubeconEU2018/cluster_aws.yml"}
+	cmdArgs := []string{"up", "--config", "/Users/alena/Desktop/conferences/KubeconEU2018/cluster_aws.yml"}
 
 	cmd := exec.Command(cmdName, cmdArgs...)
 	stdout, err := cmd.StderrPipe()
