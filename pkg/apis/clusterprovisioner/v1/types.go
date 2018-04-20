@@ -3,19 +3,16 @@ package apis
 import (
 	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"github.com/rancher/norman/condition"
 )
 
 type ClusterConditionType string
 
-
 const (
 	// ClusterConditionReady Cluster ready to serve API (healthy when true, unhealthy when false)
-	ClusterConditionReady          condition.Cond = "Ready"
+	ClusterConditionReady = "Ready"
 	// ClusterConditionProvisioned Cluster is provisioned by RKE
-	ClusterConditionProvisioned    condition.Cond = "Provisioned"
-
-
+	ClusterConditionProvisioned = "Provisioned"
+)
 
 // Cluster is the exact specification of Cluster resource
 type Cluster struct {
