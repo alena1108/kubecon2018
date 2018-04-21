@@ -1,0 +1,11 @@
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: clusters.clusterprovisioner.rke.io
+spec:
+  group: clusterprovisioner.rke.io
+  version: v1alpha1
+  names:
+    kind: Cluster
+    plural: clusters
+  scope: Cluster

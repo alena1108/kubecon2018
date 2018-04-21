@@ -1,7 +1,8 @@
 package main
 
 import (
-	"io"
+	"bytes"
+	"io/ioutil"
 	_ "net/http/pprof"
 	"os"
 	"os/exec"
@@ -9,10 +10,10 @@ import (
 
 	"fmt"
 
-	"github.com/pkg/errors"
 	"github.com/rancher/kubecon2018/.trash-cache/src/github.com/Sirupsen/logrus"
 	"github.com/rancher/kubecon2018/controllers"
 	"github.com/urfave/cli"
+	"k8s.io/client-go/tools/clientcmd"
 )
 
 var (
@@ -27,6 +28,7 @@ func main() {
 			Name:   "kubeconfig",
 			Usage:  "Kube config for accessing k8s cluster",
 			EnvVar: "KUBECONFIG",
+			Value:  "/Users/alena/.kube/config",
 		},
 	}
 
@@ -38,48 +40,48 @@ func main() {
 }
 
 func run(kubeConfig string) error {
-	//restConfig, err := clientcmd.BuildConfigFromFlags("", kubeConfig)
-	//if err != nil {
-	//	return err
-	//}
-
-	logrus.Info("Running command")
-	cmdName := "/Users/alena/go/src/github.com/rancher/rke/rke"
-	cmdArgs := []string{"up", "--config", "/Users/alena/Desktop/conferences/KubeconEU2018/cluster_aws.yml"}
-
-	cmd := exec.Command(cmdName, cmdArgs...)
-	stdout, err := cmd.StderrPipe()
+	restConfig, err := clientcmd.BuildConfigFromFlags("", kubeConfig)
 	if err != nil {
-		return errors.Wrapf(err, "error getting stdout from cmd '%v'", cmd)
+		return err
 	}
 
-	if err := cmd.Start(); err != nil {
-		return errors.Wrapf(err, "error starting cmd '%v'", cmd)
+	// Create custom resource definitions
+	if err := createCRDS(); err != nil {
+		return err
 	}
-	defer func() {
-		if err := cmd.Wait(); err != nil {
-			logrus.Debugf("error waiting for cmd '%v' %v", cmd, err)
-		}
-	}()
 
-	printLogs(stdout)
-	controllers.Register()
+	// Register controllers
+	if err := controllers.Register(restConfig); err != nil {
+		return err
+	}
+
+	// Run controllers
+	logrus.Info("Running controllers")
 
 	for {
 		time.Sleep(5 * time.Second)
 	}
 }
 
-func printLogs(r io.Reader) {
-	buf := make([]byte, 80)
-	for {
-		n, err := r.Read(buf)
-		if n > 0 {
-			fmt.Print(string(buf[0:n]))
-		}
-		if err != nil {
-			os.Exit(0)
-			break
+func createCRDS() error {
+	logrus.Info("Creating CRDs...")
+	cmdName := "kubectl"
+	files, err := ioutil.ReadDir("./config/crd")
+	if err != nil {
+		return err
+	}
+	for _, file := range files {
+		filePath := fmt.Sprintf("./config/crd/%s", file.Name())
+		logrus.Infof("Creating crd for file %s", filePath)
+		cmdArgs := []string{"apply", "-f", filePath}
+		cmd := exec.Command(cmdName, cmdArgs...)
+		var out bytes.Buffer
+		cmd.Stderr = &out
+		if err := cmd.Run(); err != nil {
+			return fmt.Errorf("failed to create CRD [%s] %v %v", file.Name(), err, out.String())
 		}
 	}
+
+	logrus.Info("Created CRDs")
+	return nil
 }

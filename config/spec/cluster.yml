@@ -1,0 +1,6 @@
+apiVersion: clusterprovisioner.rke.io/v1alpha1
+kind: Cluster
+metadata:
+  name: clusteraws
+spec:
+  configPath: /Users/alena/Desktop/conferences/KubeconEU2018/cluster_aws.yml

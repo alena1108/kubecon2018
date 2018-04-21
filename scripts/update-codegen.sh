@@ -1,7 +1,7 @@
 #!/bin/bash
 
 APIS_DIR="github.com/rancher/kubecon2018/pkg/apis/clusterprovisioner"
-VERSION="v1"
+VERSION="v1alpha1"
 APIS_VERSION_DIR="${APIS_DIR}/${VERSION}"
 OUTPUT_DIR="github.com/rancher/kubecon2018/pkg/client"
 CLIENTSET_DIR="${OUTPUT_DIR}/clientset"
