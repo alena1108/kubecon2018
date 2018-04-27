@@ -3,14 +3,18 @@ package provisioner
 import (
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os/exec"
 
-	"github.com/Sirupsen/logrus"
 	types "github.com/rancher/kubecon2018/pkg/apis/clusterprovisioner/v1alpha1"
 	clusterclient "github.com/rancher/kubecon2018/pkg/client/clientset/versioned"
 	informers "github.com/rancher/kubecon2018/pkg/client/informers/externalversions"
 	listers "github.com/rancher/kubecon2018/pkg/client/listers/clusterprovisioner/v1alpha1"
+	"github.com/sirupsen/logrus"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/cache"
 )
 
@@ -31,8 +35,9 @@ func Register(
 		clusterClient:   clusterClient,
 	}
 	controller.clusterInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc:    controller.sync,
-		DeleteFunc: controller.sync,
+		AddFunc:    controller.clusterAdd,
+		UpdateFunc: controller.clusterUpdate,
+		DeleteFunc: controller.clusterRemove,
 	})
 	stop := make(chan struct{})
 	go controller.clusterInformer.Run(stop)
@@ -43,13 +48,23 @@ func (c *Controller) getName() string {
 	return "provisioner"
 }
 
-func (c *Controller) sync(obj interface{}) {
+func (c *Controller) clusterAdd(obj interface{}) {
 	cluster := obj.(*types.Cluster)
 	if cluster.DeletionTimestamp != nil {
 		c.handleClusterRemove(cluster)
 	} else {
-		c.handleClusterAdd(cluster)
+		if err := c.handleClusterAdd(cluster); err != nil {
+			logrus.Errorf("Failed to provision cluster %s %v", cluster.Name, err)
+		}
 	}
+}
+
+func (c *Controller) clusterUpdate(obj interface{}, newObj interface{}) {
+	c.clusterAdd(newObj)
+}
+
+func (c *Controller) clusterRemove(obj interface{}) {
+	c.handleClusterRemove(obj.(*types.Cluster))
 }
 
 func (c *Controller) handleClusterRemove(cluster *types.Cluster) {
@@ -61,17 +76,31 @@ func (c *Controller) handleClusterRemove(cluster *types.Cluster) {
 	}
 }
 
-func (c *Controller) handleClusterAdd(cluster *types.Cluster) {
-	logrus.Infof("Cluster [%s] is added; provisioning...", cluster.Name)
+func (c *Controller) handleClusterAdd(cluster *types.Cluster) error {
+	config, err := getConfigStr(cluster)
+	if err != nil {
+		return err
+	}
+	if config == cluster.Status.AppliedConfig {
+		return nil
+	}
+	logrus.Infof("Cluster [%s] is updated; provisioning...", cluster.Name)
 	if err := c.initialize(cluster, c.getName()); err != nil {
-		logrus.Errorf("Error initializing cluster %s %v", cluster.Name, err)
+		return fmt.Errorf("error initializing cluster %s %v", cluster.Name, err)
 	}
 
-	if err := provisionCluster(cluster); err != nil {
-		logrus.Errorf("Error provisioning cluster %s %v", cluster.Name, err)
-	} else {
-		logrus.Infof("Successfully provisioned cluster %v", cluster.Name)
+	_, err = types.ClusterConditionProvisioned.Do(cluster, func() (runtime.Object, error) {
+		return cluster, provisionCluster(cluster)
+	})
+
+	if err != nil {
+		return fmt.Errorf("error provisioning cluster %s %v", cluster.Name, err)
 	}
+	if err := c.updateAppliedConfig(cluster, config); err != nil {
+		return fmt.Errorf("error updating cluster %s %v", cluster.Name, err)
+	}
+	logrus.Infof("Successfully provisioned cluster %v", cluster.Name)
+	return nil
 }
 
 func removeCluster(cluster *types.Cluster) (err error) {
@@ -103,6 +132,14 @@ func provisionCluster(cluster *types.Cluster) (err error) {
 	return executeCommand(cmdName, cmdArgs)
 }
 
+func getConfigStr(cluster *types.Cluster) (string, error) {
+	b, err := ioutil.ReadFile(cluster.Spec.ConfigPath)
+	if err != nil {
+		return "", err
+	}
+	return string(b), nil
+}
+
 func printLogs(r io.Reader) {
 	buf := make([]byte, 80)
 	for {
@@ -126,6 +163,7 @@ func containsString(slice []string, item string) bool {
 }
 
 func (c *Controller) initialize(cluster *types.Cluster, finalizerKey string) error {
+	//set finalizers
 	metadata, err := meta.Accessor(cluster)
 	if err != nil {
 		return err
@@ -145,8 +183,26 @@ func (c *Controller) initialize(cluster *types.Cluster, finalizerKey string) err
 	return nil
 }
 
+func (c *Controller) updateAppliedConfig(cluster *types.Cluster, config string) error {
+	cluster.Status.AppliedConfig = config
+	for i := 0; i < 3; i++ {
+		_, err := c.clusterClient.ClusterprovisionerV1alpha1().Clusters().Update(cluster)
+		if err == nil {
+			return nil
+		}
+	}
+	return nil
+}
+
 func (c *Controller) finalize(cluster *types.Cluster, finalizerKey string) error {
-	metadata, err := meta.Accessor(cluster)
+	toUpdate, err := c.clusterClient.ClusterprovisionerV1alpha1().Clusters().Get(cluster.Name, v1.GetOptions{})
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return nil
+		}
+		return err
+	}
+	metadata, err := meta.Accessor(toUpdate)
 	if err != nil {
 		return err
 	}
@@ -160,9 +216,9 @@ func (c *Controller) finalize(cluster *types.Cluster, finalizerKey string) error
 	}
 
 	// run deletion hook
-	if err = removeCluster(cluster); err != nil {
-		return err
-	}
+	//if err = removeCluster(cluster); err != nil {
+	//	return err
+	//}
 
 	// remove finalizer
 	var finalizers []string
@@ -175,9 +231,9 @@ func (c *Controller) finalize(cluster *types.Cluster, finalizerKey string) error
 	metadata.SetFinalizers(finalizers)
 
 	for i := 0; i < 3; i++ {
-		_, err = c.clusterClient.ClusterprovisionerV1alpha1().Clusters().Update(cluster)
+		_, err = c.clusterClient.ClusterprovisionerV1alpha1().Clusters().Update(toUpdate)
 		if err == nil {
-			return err
+			break
 		}
 	}
 
