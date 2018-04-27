@@ -1,6 +1,7 @@
 package v1alpha1
 
 import (
+	"github.com/rancher/norman/condition"
 	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -9,9 +10,9 @@ type ClusterConditionType string
 
 const (
 	// ClusterConditionReady Cluster ready to serve API (healthy when true, unhealthy when false)
-	ClusterConditionReady = "Ready"
+	ClusterConditionReady condition.Cond = "Ready"
 	// ClusterConditionProvisioned Cluster is provisioned by RKE
-	ClusterConditionProvisioned = "Provisioned"
+	ClusterConditionProvisioned condition.Cond = "Provisioned"
 )
 
 // +genclient
@@ -39,7 +40,6 @@ type ClusterList struct {
 
 type ClusterSpec struct {
 	ConfigPath string `json: "configPath, omitempty"`
-	Config     string `json:"config,omitempty"`
 }
 
 type ClusterStatus struct {
