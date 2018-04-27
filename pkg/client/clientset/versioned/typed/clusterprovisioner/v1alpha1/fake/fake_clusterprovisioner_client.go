@@ -30,6 +30,10 @@ func (c *FakeClusterprovisionerV1alpha1) Clusters() v1alpha1.ClusterInterface {
 	return &FakeClusters{c}
 }
 
+func (c *FakeClusterprovisionerV1alpha1) Kubeconfigs() v1alpha1.KubeconfigInterface {
+	return &FakeKubeconfigs{c}
+}
+
 // RESTClient returns a RESTClient that is used to communicate
 // with API server by this client implementation.
 func (c *FakeClusterprovisionerV1alpha1) RESTClient() rest.Interface {

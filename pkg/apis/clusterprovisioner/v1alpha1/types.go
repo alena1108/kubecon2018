@@ -29,6 +29,19 @@ type Cluster struct {
 	Status ClusterStatus `json:"status"`
 }
 
+// +genclient
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +resource:path=kubeconfig
+// +genclient:noStatus
+// +genclient:nonNamespaced
+
+type Kubeconfig struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+
+	Spec KubeconfigSpec `json:"spec"`
+}
+
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +resource:path=clusters
 
@@ -36,6 +49,18 @@ type ClusterList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata"`
 	Items           []Cluster `json:"items"`
+}
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +resource:path=kubeconfigs
+
+type KubeconfigList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata"`
+	Items           []Kubeconfig `json:"items"`
+}
+type KubeconfigSpec struct {
+	ConfigPath string `json: "configPath, omitempty"`
 }
 
 type ClusterSpec struct {

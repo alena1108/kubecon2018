@@ -21,3 +21,7 @@ package v1alpha1
 // ClusterListerExpansion allows custom methods to be added to
 // ClusterLister.
 type ClusterListerExpansion interface{}
+
+// KubeconfigListerExpansion allows custom methods to be added to
+// KubeconfigLister.
+type KubeconfigListerExpansion interface{}

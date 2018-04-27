@@ -26,6 +26,7 @@ import (
 type ClusterprovisionerV1alpha1Interface interface {
 	RESTClient() rest.Interface
 	ClustersGetter
+	KubeconfigsGetter
 }
 
 // ClusterprovisionerV1alpha1Client is used to interact with features provided by the clusterprovisioner.rke.io group.
@@ -35,6 +36,10 @@ type ClusterprovisionerV1alpha1Client struct {
 
 func (c *ClusterprovisionerV1alpha1Client) Clusters() ClusterInterface {
 	return newClusters(c)
+}
+
+func (c *ClusterprovisionerV1alpha1Client) Kubeconfigs() KubeconfigInterface {
+	return newKubeconfigs(c)
 }
 
 // NewForConfig creates a new ClusterprovisionerV1alpha1Client for the given config.

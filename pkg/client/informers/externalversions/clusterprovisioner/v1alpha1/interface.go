@@ -26,6 +26,8 @@ import (
 type Interface interface {
 	// Clusters returns a ClusterInformer.
 	Clusters() ClusterInformer
+	// Kubeconfigs returns a KubeconfigInformer.
+	Kubeconfigs() KubeconfigInformer
 }
 
 type version struct {
@@ -40,4 +42,9 @@ func New(f internalinterfaces.SharedInformerFactory) Interface {
 // Clusters returns a ClusterInformer.
 func (v *version) Clusters() ClusterInformer {
 	return &clusterInformer{factory: v.SharedInformerFactory}
+}
+
+// Kubeconfigs returns a KubeconfigInformer.
+func (v *version) Kubeconfigs() KubeconfigInformer {
+	return &kubeconfigInformer{factory: v.SharedInformerFactory}
 }

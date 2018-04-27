@@ -13,7 +13,7 @@ import (
 	"github.com/sirupsen/logrus"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/cache"
 )
@@ -41,7 +41,7 @@ func Register(
 	})
 	stop := make(chan struct{})
 	go controller.clusterInformer.Run(stop)
-	logrus.Info("Registered provisioner controller")
+	logrus.Infof("Registered %s controller", controller.getName())
 }
 
 func (c *Controller) getName() string {
