@@ -76,7 +76,7 @@ func (c *Controller) sync(key string) {
 func (c *Controller) handleClusterRemove(cluster *types.Cluster) error {
 	logrus.Infof("Removing cluster %v", cluster.Name)
 	if err := c.finalize(cluster, c.getName()); err != nil {
-		return fmt.Errorf("Error removing cluster %s %v", cluster.Name, err)
+		return fmt.Errorf("error removing cluster %s %v", cluster.Name, err)
 	} else {
 		logrus.Infof("Successfully removed cluster %v", cluster.Name)
 	}
@@ -88,24 +88,27 @@ func (c *Controller) handleClusterAdd(cluster *types.Cluster) error {
 	if err != nil {
 		return err
 	}
+	// Compare applied vs current config, and only run update when there are changes
 	if config == cluster.Status.AppliedConfig {
 		return nil
 	}
-	if types.ClusterConditionProvisioned.IsUnknown(cluster) {
-		return nil
-	}
+
 	logrus.Infof("Cluster [%s] is updated; provisioning...", cluster.Name)
+	// Add finalizer and other init fields
 	if err := c.initialize(cluster, c.getName()); err != nil {
 		return fmt.Errorf("error initializing cluster %s %v", cluster.Name, err)
 	}
 
+	// Provision the cluster
 	_, err = types.ClusterConditionProvisioned.Do(cluster, func() (runtime.Object, error) {
+		// this is the place where cluster provisioning backend logic is being invoked
 		return cluster, provisionCluster(cluster)
 	})
 
 	if err != nil {
 		return fmt.Errorf("error provisioning cluster %s %v", cluster.Name, err)
 	}
+	// Update cluster with applied spec
 	if err := c.updateAppliedConfig(cluster, config); err != nil {
 		return fmt.Errorf("error updating cluster %s %v", cluster.Name, err)
 	}
@@ -218,19 +221,21 @@ func (c *Controller) finalize(cluster *types.Cluster, finalizerKey string) error
 	}
 	// Check finalizer
 	if metadata.GetDeletionTimestamp() == nil {
+		// already deleted
 		return nil
 	}
 
+	// already "finalized" by this controllerß
 	if !containsString(metadata.GetFinalizers(), finalizerKey) {
 		return nil
 	}
 
-	////run deletion hook
-	//err = removeCluster(cluster)
-	//if err != nil {
-	//	return err
-	//}
-	// remove finalizer
+	//run deletion hook - call cluster cleanup logic on the backend
+	err = removeCluster(cluster)
+	if err != nil {
+		return err
+	}
+	// remove finalizer when/if the cleanup passed successfully
 	var finalizers []string
 	for _, finalizer := range metadata.GetFinalizers() {
 		if finalizer == finalizerKey {

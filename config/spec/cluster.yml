@@ -4,5 +4,4 @@ metadata:
   name: clusteraws
 spec:
   # example of cluster.yml file for RKE can be found here: https://github.com/rancher/rke/blob/master/cluster.yml
-  configPath: /Users/alena/Desktop/conferences/KubeconEU2018/cluster_aws.yml
-  kubeConfig: /Users/alena/Desktop/conferences/KubeconEU2018/kube_config_cluster_aws.yml
+  configPath: /Users/alena/Desktop/conferences/KubeconEU2018/configs/cluster_aws.yml

@@ -4,5 +4,4 @@ metadata:
   name: clusterawsbackup
 spec:
   # example of cluster.yml file for RKE can be found here: https://github.com/rancher/rke/blob/master/cluster.yml
-  configPath: /Users/alena/Desktop/conferences/KubeconEU2018/cluster_aws_backup.yml
-  kubeConfig: /Users/alena/Desktop/conferences/KubeconEU2018/kube_config_cluster_aws_backup.yml
+  configPath: /Users/alena/Desktop/conferences/KubeconEU2018/configs/cluster_aws_backup.yml
