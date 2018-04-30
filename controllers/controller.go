@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/rancher/kubecon2018/controllers/configgenerator"
+	"github.com/rancher/kubecon2018/controllers/healthchecker"
 	"github.com/rancher/kubecon2018/controllers/provisioner"
 	client "github.com/rancher/kubecon2018/pkg/client/clientset/versioned"
 	informers "github.com/rancher/kubecon2018/pkg/client/informers/externalversions"
@@ -19,6 +20,7 @@ func Register(config *rest.Config) error {
 
 	provisioner.Register(client, clusterInformerFactory)
 	configgenerator.Register(client, clusterInformerFactory)
+	healthchecker.Register(client, clusterInformerFactory)
 
 	return nil
 }

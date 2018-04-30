@@ -215,10 +215,10 @@ func (c *Controller) finalize(cluster *types.Cluster, finalizerKey string) error
 		return nil
 	}
 
-	// run deletion hook
-	//if err = removeCluster(cluster); err != nil {
-	//	return err
-	//}
+	//run deletion hook
+	if err = removeCluster(cluster); err != nil {
+		return err
+	}
 
 	// remove finalizer
 	var finalizers []string

@@ -42,6 +42,9 @@ func (c *Controller) sync(cluster *types.Cluster) {
 	if cluster.DeletionTimestamp != nil {
 		return
 	}
+	if types.ClusterConditionProvisioned.IsFalse(cluster) {
+		return
+	}
 	kubeconfig, err := c.kubeconfigClient.ClusterprovisionerV1alpha1().Kubeconfigs().Get(cluster.Name, metav1.GetOptions{})
 	if err != nil && !apierrors.IsNotFound(err) {
 		logrus.Errorf("Failed to fetch kubeconfig by name %s %v", cluster.Name, err)
@@ -49,13 +52,14 @@ func (c *Controller) sync(cluster *types.Cluster) {
 	}
 	path := getKubeConfigPath(cluster)
 
-	if kubeconfig == nil {
+	if apierrors.IsNotFound(err) || kubeconfig == nil {
 		//create
 		createKubeconfig(cluster, path, c)
 	} else if kubeconfig.Spec.ConfigPath != path {
 		updateKubeconfig(kubeconfig, path, c, cluster)
 	}
 }
+
 func createKubeconfig(cluster *types.Cluster, path string, c *Controller) {
 	controller := true
 	ownerRef := metav1.OwnerReference{
@@ -80,6 +84,9 @@ func createKubeconfig(cluster *types.Cluster, path string, c *Controller) {
 	}
 	_, err := c.kubeconfigClient.ClusterprovisionerV1alpha1().Kubeconfigs().Create(kubeconfig)
 	if err != nil {
+		if apierrors.IsAlreadyExists(err) {
+			return
+		}
 		logrus.Errorf("Failed to create kubeconfig for cluster %s %v", cluster.Name, err)
 	}
 }

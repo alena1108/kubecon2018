@@ -10,8 +10,8 @@ import (
 
 	"fmt"
 
-	"github.com/rancher/kubecon2018/.trash-cache/src/github.com/Sirupsen/logrus"
 	"github.com/rancher/kubecon2018/controllers"
+	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 	"k8s.io/client-go/tools/clientcmd"
 )
