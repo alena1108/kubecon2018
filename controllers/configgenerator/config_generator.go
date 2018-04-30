@@ -42,7 +42,7 @@ func (c *Controller) sync(cluster *types.Cluster) {
 	if cluster.DeletionTimestamp != nil {
 		return
 	}
-	if types.ClusterConditionProvisioned.IsFalse(cluster) {
+	if !types.ClusterConditionProvisioned.IsTrue(cluster) {
 		return
 	}
 	kubeconfig, err := c.kubeconfigClient.ClusterprovisionerV1alpha1().Kubeconfigs().Get(cluster.Name, metav1.GetOptions{})
@@ -64,9 +64,9 @@ func createKubeconfig(cluster *types.Cluster, path string, c *Controller) {
 	controller := true
 	ownerRef := metav1.OwnerReference{
 		Name:       cluster.Name,
-		APIVersion: cluster.APIVersion,
+		APIVersion: "v1alpha1",
 		UID:        cluster.UID,
-		Kind:       cluster.Kind,
+		Kind:       "Cluster",
 		Controller: &controller,
 	}
 	kubeconfig := &types.Kubeconfig{
@@ -76,7 +76,7 @@ func createKubeconfig(cluster *types.Cluster, path string, c *Controller) {
 		},
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Kubeconfig",
-			APIVersion: cluster.APIVersion,
+			APIVersion: "clusterprovisioner.rke.io/v1alpha1",
 		},
 		Spec: types.KubeconfigSpec{
 			ConfigPath: path,
@@ -114,6 +114,6 @@ func (c *Controller) addConfig(obj interface{}) {
 }
 
 func (c *Controller) updateConfig(obj interface{}, updated interface{}) {
-	cluster := updated.(*types.Cluster)
+	cluster := obj.(*types.Cluster)
 	c.sync(cluster)
 }

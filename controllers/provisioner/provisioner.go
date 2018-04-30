@@ -5,11 +5,13 @@ import (
 	"io"
 	"io/ioutil"
 	"os/exec"
+	"time"
 
 	types "github.com/rancher/kubecon2018/pkg/apis/clusterprovisioner/v1alpha1"
 	clusterclient "github.com/rancher/kubecon2018/pkg/client/clientset/versioned"
 	informers "github.com/rancher/kubecon2018/pkg/client/informers/externalversions"
 	listers "github.com/rancher/kubecon2018/pkg/client/listers/clusterprovisioner/v1alpha1"
+	"github.com/rancher/kubecon2018/util"
 	"github.com/sirupsen/logrus"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -22,6 +24,7 @@ type Controller struct {
 	clusterLister   listers.ClusterLister
 	clusterInformer cache.SharedIndexInformer
 	clusterClient   clusterclient.Interface
+	syncQueue       *util.TaskQueue
 }
 
 func Register(
@@ -34,13 +37,17 @@ func Register(
 		clusterInformer: clusterInformer.Informer(),
 		clusterClient:   clusterClient,
 	}
+	controller.syncQueue = util.NewTaskQueue(controller.sync)
 	controller.clusterInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc:    controller.clusterAdd,
-		UpdateFunc: controller.clusterUpdate,
-		DeleteFunc: controller.clusterRemove,
+		AddFunc: func(obj interface{}) {
+			controller.syncQueue.Enqueue(obj)
+		},
+		UpdateFunc: func(old, cur interface{}) {
+			controller.syncQueue.Enqueue(cur)
+		},
 	})
 	stop := make(chan struct{})
-	go controller.clusterInformer.Run(stop)
+	go controller.syncQueue.Run(time.Second, stop)
 	logrus.Infof("Registered %s controller", controller.getName())
 }
 
@@ -48,32 +55,32 @@ func (c *Controller) getName() string {
 	return "provisioner"
 }
 
-func (c *Controller) clusterAdd(obj interface{}) {
-	cluster := obj.(*types.Cluster)
+func (c *Controller) sync(key string) {
+	cluster, err := c.clusterLister.Get(key)
+	if err != nil {
+		c.syncQueue.Requeue(key, err)
+		return
+	}
+
 	if cluster.DeletionTimestamp != nil {
-		c.handleClusterRemove(cluster)
+		err = c.handleClusterRemove(cluster)
 	} else {
-		if err := c.handleClusterAdd(cluster); err != nil {
-			logrus.Errorf("Failed to provision cluster %s %v", cluster.Name, err)
-		}
+		err = c.handleClusterAdd(cluster)
+	}
+	if err != nil {
+		c.syncQueue.Requeue(key, err)
+		return
 	}
 }
 
-func (c *Controller) clusterUpdate(obj interface{}, newObj interface{}) {
-	c.clusterAdd(newObj)
-}
-
-func (c *Controller) clusterRemove(obj interface{}) {
-	c.handleClusterRemove(obj.(*types.Cluster))
-}
-
-func (c *Controller) handleClusterRemove(cluster *types.Cluster) {
-	logrus.Infof("Removing cluser %v", cluster.Name)
+func (c *Controller) handleClusterRemove(cluster *types.Cluster) error {
+	logrus.Infof("Removing cluster %v", cluster.Name)
 	if err := c.finalize(cluster, c.getName()); err != nil {
-		logrus.Errorf("Error removing cluster %s %v", cluster.Name, err)
+		return fmt.Errorf("Error removing cluster %s %v", cluster.Name, err)
 	} else {
 		logrus.Infof("Successfully removed cluster %v", cluster.Name)
 	}
+	return nil
 }
 
 func (c *Controller) handleClusterAdd(cluster *types.Cluster) error {
@@ -82,6 +89,9 @@ func (c *Controller) handleClusterAdd(cluster *types.Cluster) error {
 		return err
 	}
 	if config == cluster.Status.AppliedConfig {
+		return nil
+	}
+	if types.ClusterConditionProvisioned.IsUnknown(cluster) {
 		return nil
 	}
 	logrus.Infof("Cluster [%s] is updated; provisioning...", cluster.Name)
@@ -215,11 +225,11 @@ func (c *Controller) finalize(cluster *types.Cluster, finalizerKey string) error
 		return nil
 	}
 
-	//run deletion hook
-	if err = removeCluster(cluster); err != nil {
-		return err
-	}
-
+	////run deletion hook
+	//err = removeCluster(cluster)
+	//if err != nil {
+	//	return err
+	//}
 	// remove finalizer
 	var finalizers []string
 	for _, finalizer := range metadata.GetFinalizers() {

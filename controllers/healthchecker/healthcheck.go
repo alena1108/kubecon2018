@@ -51,7 +51,7 @@ func (c *Controller) handleClusterUpdate(obj interface{}, updated interface{}) {
 func (c *Controller) sync(obj interface{}) {
 	cluster := obj.(*types.Cluster)
 	// skip non provisioned clusters
-	if types.ClusterConditionProvisioned.IsFalse(cluster) {
+	if !types.ClusterConditionProvisioned.IsTrue(cluster) {
 		return
 	}
 
@@ -69,7 +69,7 @@ func (c *Controller) sync(obj interface{}) {
 		}
 	}
 	if err != nil {
-		logrus.Errorf("Failed to update cluster %s %v", cluster.Name, err)
+		logrus.Debugf("Failed to update cluster %s %v", cluster.Name, err)
 	}
 }
 
