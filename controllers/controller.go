@@ -3,6 +3,7 @@ package controllers
 import (
 	"time"
 
+	"github.com/rancher/kubecon2018/controllers/annotator"
 	"github.com/rancher/kubecon2018/controllers/configgenerator"
 	"github.com/rancher/kubecon2018/controllers/healthchecker"
 	"github.com/rancher/kubecon2018/controllers/provisioner"
@@ -21,6 +22,7 @@ func Register(config *rest.Config) error {
 	provisioner.Register(client, clusterInformerFactory)
 	configgenerator.Register(client, clusterInformerFactory)
 	healthchecker.Register(client, clusterInformerFactory)
+	annotator.Register(client, clusterInformerFactory)
 
 	return nil
 }
