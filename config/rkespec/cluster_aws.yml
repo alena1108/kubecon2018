@@ -1,0 +1,6 @@
+nodes:
+  - address: 54.202.48.215
+    user: ubuntu
+    role: [controlplane,worker,etcd]
+    ssh_key_path: /Users/alena/.ssh/alena.pem
+    hostname_override: ip-172-31-7-11
